@@ -368,7 +368,9 @@ module.exports = function( grunt ) {
 
 			// Embed Date
 			// Embed Version
-			compiled = compiled.replace( "@DATE", new Date() )
+			// Seal: pin @DATE to the 1.8.3 release build date (as published in
+			// the npm tarball's tmp/jquery.js) for a reproducible dist/jquery.js.
+			compiled = compiled.replace( "@DATE", "Tue Nov 13 2012 08:20:33 GMT-0500 (Eastern Standard Time)" )
 				.replace( /@VERSION/g, version );
 
 			// Write concatenated source to file
