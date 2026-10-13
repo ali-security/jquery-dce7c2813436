@@ -1404,7 +1404,7 @@ var testHtml = function(valueObj) {
 	}
 	ok( pass, "Set HTML" );
 
-	div = jQuery("<div/>").html( valueObj("<div id='parent_1'><div id='child_1'/></div><div id='parent_2'/>") );
+	div = jQuery("<div></div>").html( valueObj("<div id='parent_1'><div id='child_1'></div></div><div id='parent_2'></div>") );
 
 	equal( div.children().length, 2, "Make sure two child nodes exist." );
 	equal( div.children().children().length, 1, "Make sure that a grandchild exists." );
@@ -1894,18 +1894,18 @@ test("Guard against exceptions when clearing safeChildNodes", function() {
 	var div;
 
 	try {
-		div = jQuery("<div/><hr/><code/><b/>");
+		div = jQuery("<div></div><hr/><code></code><b></b>");
 	} catch(e) {}
 
 	ok( div && div.jquery, "Created nodes safely, guarded against exceptions on safeChildNodes[ -1 ]" );
 });
 
 test("Ensure oldIE creates a new set on appendTo (#8894)", function() {
-	strictEqual( jQuery("<div/>").clone().addClass("test").appendTo("<div/>").end().hasClass("test"), false, "Check jQuery.fn.appendTo after jQuery.clone" );
-	strictEqual( jQuery("<div/>").find("p").end().addClass("test").appendTo("<div/>").end().hasClass("test"), false, "Check jQuery.fn.appendTo after jQuery.fn.find" );
-	strictEqual( jQuery("<div/>").text("test").addClass("test").appendTo("<div/>").end().hasClass("test"), false, "Check jQuery.fn.appendTo after jQuery.fn.text" );
-	strictEqual( jQuery("<bdi/>").clone().addClass("test").appendTo("<div/>").end().hasClass("test"), false, "Check jQuery.fn.appendTo after clone html5 element" );
-	strictEqual( jQuery("<p/>").appendTo("<div/>").end().length, jQuery("<p>test</p>").appendTo("<div/>").end().length, "Elements created with createElement and with createDocumentFragment should be treated alike" );
+	strictEqual( jQuery("<div></div>").clone().addClass("test").appendTo("<div></div>").end().hasClass("test"), false, "Check jQuery.fn.appendTo after jQuery.clone" );
+	strictEqual( jQuery("<div></div>").find("p").end().addClass("test").appendTo("<div></div>").end().hasClass("test"), false, "Check jQuery.fn.appendTo after jQuery.fn.find" );
+	strictEqual( jQuery("<div></div>").text("test").addClass("test").appendTo("<div></div>").end().hasClass("test"), false, "Check jQuery.fn.appendTo after jQuery.fn.text" );
+	strictEqual( jQuery("<bdi></bdi>").clone().addClass("test").appendTo("<div></div>").end().hasClass("test"), false, "Check jQuery.fn.appendTo after clone html5 element" );
+	strictEqual( jQuery("<p></p>").appendTo("<div></div>").end().length, jQuery("<p>test</p>").appendTo("<div></div>").end().length, "Elements created with createElement and with createDocumentFragment should be treated alike" );
 });
 
 test("html() - script exceptions bubble (#11743)", function() {
@@ -1952,4 +1952,87 @@ testIframeWithCallback( "buildFragment works even if document[0] is iframe's win
 	expect( 1 );
 
 	ok( test.status, test.description );
+});
+
+test( "Self-closed non-void tags are not expanded (CVE-2020-11022)", function() {
+	expect( 7 );
+
+	var div = jQuery("<div></div>").html("<div/><span/>");
+	equal( div.children().length, 1, "html(): a self-closed div is not turned into an empty element" );
+	equal( div.children().children("span").length, 1, "html(): markup after a self-closed div is its content" );
+
+	div = jQuery("<div></div>").append("<div/><span/>");
+	equal( div.children().length, 1, "append(): a self-closed div is not turned into an empty element" );
+	equal( div.children().children("span").length, 1, "append(): markup after a self-closed div is its content" );
+
+	equal( jQuery("<div/><span/>").length, 1, "jQuery( html ): a self-closed div is not turned into an empty element" );
+
+	div = jQuery("<div></div>").html("<textarea><textarea/><b>x</b>");
+	equal( div.find("b").length, 0, "html(): raw text element content is not turned into markup" );
+
+	div = jQuery("<div></div>").append("<style><style/><b>x</b>");
+	equal( div.find("b").length, 0, "append(): raw text element content is not turned into markup" );
+});
+
+asyncTest( "Sanitized HTML doesn't get unsanitized (CVE-2020-11022)", 27, function() {
+	var i, j, id,
+		waited = 0,
+		container = jQuery("<div></div>").appendTo("#qunit-fixture"),
+		called = {},
+		descriptions = [],
+		methods = [ "html", "append" ],
+
+		// Thanks to Masato Kinugawa from Cure53 for providing the following test cases.
+		// "%n" is replaced by a unique id per injection
+		inputs = [
+			"<img alt=\"<x\" title=\"/><img src=url404 onerror=xss(%n)>\">",
+			"<img alt=\"\n<x\" title=\"/>\n<img src=url404 onerror=xss(%n)>\">",
+			"<style><style/><img src=url404 onerror=xss(%n)>",
+			"<xmp><xmp/><img src=url404 onerror=xss(%n)>",
+			"<title><title /><img src=url404 onerror=xss(%n)>",
+			"<iframe><iframe/><img src=url404 onerror=xss(%n)>",
+			"<noframes><noframes/><img src=url404 onerror=xss(%n)>",
+			"<noscript><noscript/><img src=url404 onerror=xss(%n)>",
+			"<foo\" alt=\"\" title=\"/><img src=url404 onerror=xss(%n)>\">",
+			"<img alt=\"<x\" title=\"\" src=\"/><img src=url404 onerror=xss(%n)>\">",
+			"<noscript/><img src=url404 onerror=xss(%n)>",
+			"<textarea><textarea/><img src=url404 onerror=xss(%n)>",
+			"<noembed><noembed/><img src=url404 onerror=xss(%n)>"
+		];
+
+	window.xss = function( n ) {
+		called[ n ] = true;
+	};
+
+	for ( i = 0; i < methods.length; i++ ) {
+		for ( j = 0; j < inputs.length; j++ ) {
+			id = descriptions.length;
+			descriptions.push( methods[ i ] + "(): " + inputs[ j ] );
+			jQuery("<div></div>").appendTo( container )[ methods[ i ] ]( inputs[ j ].replace( "%n", id ) );
+		}
+	}
+
+	// Genuine markup with the same payload must run, otherwise the
+	// assertions below could pass without the payloads ever being able to fire
+	jQuery("<div></div>").appendTo( container ).html("<img src=url404 onerror=xss('control')>");
+
+	function finish() {
+		ok( called["control"], "Control: an onerror handler in genuine markup is executed" );
+		for ( i = 0; i < descriptions.length; i++ ) {
+			ok( !called[ i ], "Insecure code wasn't executed, input: " + descriptions[ i ] );
+		}
+		window.xss = function() {};
+		start();
+	}
+
+	function wait() {
+		if ( !called["control"] && waited < 10000 ) {
+			waited += 100;
+			setTimeout( wait, 100 );
+			return;
+		}
+		setTimeout( finish, 1000 );
+	}
+
+	wait();
 });

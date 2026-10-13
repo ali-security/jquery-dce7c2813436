@@ -22,9 +22,9 @@ test("jQuery()", function() {
 	var elem, i,
 		obj = jQuery("div"),
 		main = jQuery("#qunit-fixture"),
-		code = jQuery("<code/>"),
+		code = jQuery("<code></code>"),
 		img = jQuery("<img/>"),
-		div = jQuery("<div/><hr/><code/><b/>"),
+		div = jQuery("<div></div><hr/><code></code><b/>"),
 		exec = false,
 		lng = "",
 		expected = 26,
@@ -1192,7 +1192,7 @@ test("jQuery.parseHTML", function() {
 
 	equal( jQuery.parseHTML("text")[0].nodeType, 3, "Parsing text returns a text node" );
 
-	equal( jQuery.parseHTML(" <div/> ")[0].nodeType, 3, "Leading spaces are treated as text nodes (#11290)" );
+	equal( jQuery.parseHTML(" <div></div> ")[0].nodeType, 3, "Leading spaces are treated as text nodes (#11290)" );
 });
 
 test("jQuery.parseJSON", function(){
