@@ -468,7 +468,7 @@ jQuery.extend({
 	// context (optional): If specified, the fragment will be created in this context, defaults to document
 	// scripts (optional): If true, will include scripts passed in the html string
 	parseHTML: function( data, context, scripts ) {
-		var parsed;
+		var parsed, base;
 		if ( !data || typeof data !== "string" ) {
 			return null;
 		}
@@ -476,7 +476,22 @@ jQuery.extend({
 			scripts = context;
 			context = 0;
 		}
-		context = context || document;
+		if ( !context ) {
+			// Stop scripts or inline event handlers from being executed immediately
+			// by using document.implementation
+			if ( jQuery.support.createHTMLDocument ) {
+				context = document.implementation.createHTMLDocument( "" );
+
+				// Set the base href for the created document
+				// so any parsed elements with URLs
+				// are based on the document's URL (gh-2965)
+				base = context.createElement( "base" );
+				base.href = document.location.href;
+				context.getElementsByTagName( "head" )[ 0 ].appendChild( base );
+			} else {
+				context = document;
+			}
+		}
 
 		// Single tag
 		if ( (parsed = rsingleTag.exec( data )) ) {

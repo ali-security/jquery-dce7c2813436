@@ -262,5 +262,20 @@ jQuery.support = (function() {
 	fragment.removeChild( div );
 	all = a = select = opt = input = fragment = div = null;
 
+	// Support: IE <9, Safari 8 only
+	// IE <9 has no document.implementation.createHTMLDocument, and in Safari 8
+	// documents created via document.implementation.createHTMLDocument
+	// collapse sibling forms: the second one becomes a child of the first one.
+	// jQuery.parseHTML falls back to the current document there.
+	// https://bugs.webkit.org/show_bug.cgi?id=137337
+	support.createHTMLDocument = (function() {
+		if ( !document.implementation || !document.implementation.createHTMLDocument ) {
+			return false;
+		}
+		var body = document.implementation.createHTMLDocument( "" ).body;
+		body.innerHTML = "<form></form><form></form>";
+		return body.childNodes.length === 2;
+	})();
+
 	return support;
 })();

@@ -1210,6 +1210,28 @@ test("jQuery.parseJSON", function(){
 	}
 });
 
+test("jQuery.parseHTML(<a href>) - gh-2965", function() {
+	expect( 1 );
+
+	var html = "<a href='test.html'></a>",
+		href = jQuery.parseHTML( html )[ 0 ].href;
+
+	ok( /\/test\.html$/.test( href ), "href is not lost after parsing anchor" );
+});
+
+if ( jQuery.support.createHTMLDocument ) {
+	asyncTest("jQuery.parseHTML - inline event handlers are not run (sonatype-2014-0026)", 1, function() {
+		jQuery["_parseHTMLError"] = false;
+		jQuery.parseHTML( "<img src=x onerror='jQuery._parseHTMLError = true'>" );
+
+		window.setTimeout(function() {
+			start();
+			equal( jQuery["_parseHTMLError"], false, "onerror eventhandler has not been called." );
+			delete jQuery["_parseHTMLError"];
+		}, 2000 );
+	});
+}
+
 test("jQuery.parseXML", 8, function(){
 	var xml, tmp;
 	try {
