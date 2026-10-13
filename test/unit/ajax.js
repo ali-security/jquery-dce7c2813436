@@ -67,6 +67,75 @@ test("jQuery.ajax() - success callbacks - (url, options) syntax", function() {
 	}, 13);
 });
 
+test("jQuery.ajax() - do not execute js (crossOrigin) (gh-2432)", function() {
+	expect( 2 );
+
+	stop();
+
+	jQuery.ajax( url("data/script.php?header=ecma"), {
+		crossDomain: true,
+		success: function() {
+			ok( true, "success" );
+		},
+		complete: function() {
+			ok( true, "complete" );
+			start();
+		}
+	});
+});
+
+test("jQuery.ajax() - execute js for crossOrigin when dataType option is provided (gh-2432)", function() {
+	expect( 3 );
+
+	stop();
+
+	jQuery.ajax( url("data/script.php?header=ecma"), {
+		crossDomain: true,
+		dataType: "script",
+		success: function() {
+			ok( true, "success" );
+		},
+		complete: function() {
+			ok( true, "complete" );
+			start();
+		}
+	});
+});
+
+test("jQuery.ajax() - do not execute js (crossOrigin, default content-type) (gh-2432)", function() {
+	expect( 2 );
+
+	stop();
+
+	jQuery.ajax( url("data/script.php"), {
+		crossDomain: true,
+		success: function() {
+			ok( true, "success" );
+		},
+		complete: function() {
+			ok( true, "complete" );
+			start();
+		}
+	});
+});
+
+test("jQuery.ajax() - do not execute js (crossOrigin, text/javascript) (gh-2432)", function() {
+	expect( 2 );
+
+	stop();
+
+	jQuery.ajax( url("data/script.php?header=script"), {
+		crossDomain: true,
+		success: function() {
+			ok( true, "success" );
+		},
+		complete: function() {
+			ok( true, "complete" );
+			start();
+		}
+	});
+});
+
 test("jQuery.ajax() - success callbacks (late binding)", function() {
 	expect( 8 );
 
