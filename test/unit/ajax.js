@@ -1097,6 +1097,17 @@ test("load('url selector')", function() {
 	});
 });
 
+asyncTest("load('url selector') - scripts with unusual end tags are not executed (CVE-2020-7656)", 4, function() {
+	jQuery("#first").load("data/loadScriptBypass.html div.user", function(){
+		var users = jQuery(this).children("div");
+		equal( users.length, 2, "Verify that specific elements were injected" );
+		equal( jQuery.trim( users.eq(1).text() ), "This is a user", "Verify the content of the selected elements" );
+		equal( jQuery(this).find("script").length, 0, "No script elements were injected" );
+		equal( jQuery(this).find(".teacher").length, 0, "Unselected elements were not injected" );
+		start();
+	});
+});
+
 test("load(String, Function) with ajaxSetup on dataType json, see #2046", function() {
 	expect(1);
 	stop();

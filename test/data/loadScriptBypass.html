@@ -1,0 +1,10 @@
+<div class="user">This is a user</div>
+<script>ok( false, "script whose end tag has a trailing space was executed" );</script >
+<div class="user">This is a user
+<script>ok( false, "script nested in a selected element, end tag with a trailing tab, was executed" );</script	>
+</div>
+<script>ok( false, "script whose end tag has a trailing newline was executed" );</script
+>
+<SCRIPT>ok( false, "uppercase script whose end tag has an attribute was executed" );</SCRIPT foo="bar">
+<div class="teacher">This is a teacher</div>
+<script>ok( false, "unterminated script was executed" );
