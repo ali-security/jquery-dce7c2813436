@@ -103,6 +103,12 @@ jQuery.support = (function() {
 	select.disabled = true;
 	support.optDisabled = !opt.disabled;
 
+	// Support: IE <=9 only
+	// IE <=9 replaces <option> tags with their contents when inserted outside of
+	// the select element.
+	div.innerHTML = "<option></option>";
+	support.option = !!div.lastChild;
+
 	// Test to see if it's possible to delete an expando from an element
 	// Fails in Internet Explorer
 	try {

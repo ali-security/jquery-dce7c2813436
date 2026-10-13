@@ -2036,3 +2036,115 @@ asyncTest( "Sanitized HTML doesn't get unsanitized (CVE-2020-11022)", 27, functi
 
 	wait();
 });
+
+test( "<option> markup is not parsed inside a select wrapper (CVE-2020-11023)", function() {
+	var nodes, div,
+		html = "<option>a</option></select><b>b</b>",
+		optgroupHtml = "<optgroup label='g'></optgroup></select><b>b</b>",
+		rawText = "</option></select><b>x</b>";
+
+	// Support: IE <=9 only
+	// IE <=9 drops <option> tags parsed outside of a select element,
+	// so the select wrapper is still required there
+	if ( /msie [6-9]\./i.test( window.navigator.userAgent ) ) {
+		expect( 1 );
+		strictEqual( jQuery.support.option, false, "IE <=9 still needs the select wrapper for <option> markup" );
+		return;
+	}
+
+	expect( 18 );
+
+	strictEqual( jQuery.support.option, true, "<option> markup is parsed outside of a select element" );
+
+	nodes = jQuery( html );
+	equal( nodes.length, 2, "jQuery( html ): a stray </select> doesn't close a wrapper" );
+	ok( !!nodes[ 0 ] && jQuery.nodeName( nodes[ 0 ], "option" ), "jQuery( html ): the option is kept" );
+	ok( !!nodes[ 1 ] && jQuery.nodeName( nodes[ 1 ], "b" ), "jQuery( html ): markup after the stray </select> is a sibling" );
+
+	nodes = jQuery.parseHTML( html );
+	equal( nodes.length, 2, "jQuery.parseHTML(): a stray </select> doesn't close a wrapper" );
+	ok( !!nodes[ 0 ] && jQuery.nodeName( nodes[ 0 ], "option" ) && !!nodes[ 1 ] && jQuery.nodeName( nodes[ 1 ], "b" ), "jQuery.parseHTML(): option followed by its sibling" );
+
+	div = jQuery("<div></div>").html( html );
+	equal( div.children().length, 2, "html(): a stray </select> doesn't close a wrapper" );
+	equal( div.children("option").length, 1, "html(): the option is kept" );
+	equal( div.children("b").length, 1, "html(): markup after the stray </select> is a sibling" );
+
+	div = jQuery("<div></div>").append( html );
+	equal( div.children().length, 2, "append(): a stray </select> doesn't close a wrapper" );
+	equal( div.children("option").length, 1, "append(): the option is kept" );
+	equal( div.children("b").length, 1, "append(): markup after the stray </select> is a sibling" );
+
+	nodes = jQuery( optgroupHtml );
+	equal( nodes.length, 2, "jQuery( html ): a stray </select> doesn't close an optgroup wrapper" );
+	ok( !!nodes[ 0 ] && jQuery.nodeName( nodes[ 0 ], "optgroup" ), "jQuery( html ): the optgroup is kept" );
+
+	div = jQuery("<div></div>").html( "<option><style>" + rawText + "</style>" );
+	equal( div.find("b").length, 0, "html(): raw text inside an option is not turned into markup" );
+	equal( div.find("style").text(), rawText, "html(): raw text inside an option is kept as is" );
+
+	div = jQuery("<div></div>").append( "<option><style>" + rawText + "</style>" );
+	equal( div.find("b").length, 0, "append(): raw text inside an option is not turned into markup" );
+	equal( div.find("style").text(), rawText, "append(): raw text inside an option is kept as is" );
+});
+
+asyncTest( "Sanitized <option> HTML doesn't get unsanitized (CVE-2020-11023)", 7, function() {
+	var i, id,
+		waited = 0,
+		container = jQuery("<div></div>").appendTo("#qunit-fixture"),
+		called = {},
+		descriptions = [],
+
+		// Thanks to Masato Kinugawa from Cure53 for providing the original test case.
+		// "%n" is replaced by a unique id per injection
+		inputs = [
+			"<option><style></option></select><img src=url404 onerror=xssOption(%n)></style>",
+			"<optgroup><style></optgroup></select><img src=url404 onerror=xssOption(%n)></style>"
+		],
+		inject = {
+			"html()": function( html ) {
+				jQuery("<div></div>").appendTo( container ).html( html );
+			},
+			"append()": function( html ) {
+				jQuery("<div></div>").appendTo( container ).append( html );
+			},
+			"jQuery( html )": function( html ) {
+				jQuery( html ).appendTo( jQuery("<div></div>").appendTo( container ) );
+			}
+		};
+
+	window.xssOption = function( n ) {
+		called[ n ] = true;
+	};
+
+	for ( i in inject ) {
+		for ( id = 0; id < inputs.length; id++ ) {
+			descriptions.push( i + ": " + inputs[ id ] );
+			inject[ i ]( inputs[ id ].replace( "%n", descriptions.length - 1 ) );
+		}
+	}
+
+	// Genuine markup with the same payload must run, otherwise the
+	// assertions below could pass without the payloads ever being able to fire
+	jQuery("<div></div>").appendTo( container ).html("<img src=url404 onerror=xssOption('control')>");
+
+	function finish() {
+		ok( called["control"], "Control: an onerror handler in genuine markup is executed" );
+		for ( i = 0; i < descriptions.length; i++ ) {
+			ok( !called[ i ], "Insecure code wasn't executed, input: " + descriptions[ i ] );
+		}
+		window.xssOption = function() {};
+		start();
+	}
+
+	function wait() {
+		if ( !called["control"] && waited < 10000 ) {
+			waited += 100;
+			setTimeout( wait, 100 );
+			return;
+		}
+		setTimeout( finish, 1000 );
+	}
+
+	wait();
+});
