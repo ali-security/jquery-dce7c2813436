@@ -101,6 +101,12 @@ test("jQuery()", function() {
 
 	equal( jQuery(document.body).get(0), jQuery("body").get(0), "Test passing an html node to the factory" );
 
+	elem = jQuery("  <em>hello</em>")[0];
+	equal( elem.nodeName.toLowerCase(), "em", "leading space" );
+
+	elem = jQuery("\n\n<em>world</em>")[0];
+	equal( elem.nodeName.toLowerCase(), "em", "leading newlines" );
+
 	elem = jQuery("<div/>", attrObj );
 
 	if ( jQuery.fn.width ) {
@@ -140,14 +146,42 @@ test("jQuery()", function() {
 	elem.remove();
 
 	equal( jQuery(" <div/> ").length, 1, "Make sure whitespace is trimmed." );
-	equal( jQuery(" a<div/>b ").length, 1, "Make sure whitespace and other characters are trimmed." );
 
 	for ( i = 0; i < 128; i++ ) {
 		lng += "12345678";
 	}
 
 	equal( jQuery(" <div>" + lng + "</div> ").length, 1, "Make sure whitespace is trimmed on long strings." );
-	equal( jQuery(" a<div>" + lng + "</div>b ").length, 1, "Make sure whitespace and other characters are trimmed on long strings." );
+});
+
+asyncTest("jQuery(selector) with markup after leading text is not parsed as HTML (#11290)", function() {
+	expect( 4 );
+
+	var elems;
+
+	window.xss11290 = false;
+
+	// Selectors built around untrusted input: the markup is not at the start,
+	// so it must be handled as a selector instead of creating the element
+	elems = jQuery( "a[title='<img src=x onerror=\"window.xss11290=true\">']" );
+	equal( elems.length, 0, "Markup inside an attribute selector does not create elements" );
+
+	elems = jQuery( "p:contains('<img src=x onerror=\"window.xss11290=true\">')" );
+	equal( elems.length, 0, "Markup inside a :contains() selector does not create elements" );
+
+	raises(function() {
+		// Setting context to null here somehow avoids QUnit's window.error handling
+		// making the e & e.message correct
+		jQuery.call( null, "x<img src=x onerror=\"window.xss11290=true\">" );
+	}, function( e ) {
+		return e.message.indexOf("Syntax error") >= 0;
+	}, "Text before markup is a selector syntax error, not HTML" );
+
+	setTimeout(function() {
+		ok( !window.xss11290, "No event handler from markup embedded in a selector was run" );
+		window.xss11290 = undefined;
+		start();
+	}, 500 );
 });
 
 test("selector state", function() {
@@ -1119,7 +1153,7 @@ test("jQuery.proxy", function(){
 });
 
 test("jQuery.parseHTML", function() {
-	expect( 11 );
+	expect( 12 );
 
 	equal( jQuery.parseHTML(), null, "Nothing in, null out." );
 	equal( jQuery.parseHTML( null ), null, "Nothing in, null out." );
@@ -1145,6 +1179,8 @@ test("jQuery.parseHTML", function() {
 	}, "Passing a script is allowed if allowScripts is true");
 
 	equal( jQuery.parseHTML("text")[0].nodeType, 3, "Parsing text returns a text node" );
+
+	equal( jQuery.parseHTML(" <div/> ")[0].nodeType, 3, "Leading spaces are treated as text nodes (#11290)" );
 });
 
 test("jQuery.parseJSON", function(){
